@@ -31,3 +31,12 @@ st.title("Wahoo Analytics")
 
 st.subheader("Preview Data")
 st.write(df.head(10))
+
+columns = df.columns.tolist()
+# selected_column = st.selectbox("Select column to filter by", columns)
+
+x_column = st.selectbox("Select x-axis column", columns)
+y_column = st.selectbox("Select y-axis column", columns)
+
+if st.button("Generate Plot"):
+    st.line_chart(df.set_index(x_column)[y_column])
