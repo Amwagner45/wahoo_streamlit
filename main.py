@@ -2,6 +2,7 @@ import streamlit as st
 from google.oauth2 import service_account
 from google.cloud import bigquery
 import pandas as pd
+from datetime import datetime, timedelta
 
 # Create API client.
 credentials = service_account.Credentials.from_service_account_info(
@@ -22,21 +23,39 @@ def run_query(query):
 
 
 data = run_query(
-    "SELECT * FROM `learngcp-408315.prod.wahoo_mage` order by starts desc LIMIT 10"
+    """
+    SELECT *
+    FROM `learngcp-408315.prod.wahoo_analysis` order by starts_at desc
+    """
 )
 df = pd.DataFrame(data)
 
+today = datetime.now().date()
+seven_days_ago = today - timedelta(days=7)
+
+df["starts_at"] = pd.to_datetime(df["starts_at"])
+df_this_week = df[df["starts_at"] >= seven_days_ago & df["starts_at"] <= today]
 
 st.title("Wahoo Analytics")
 
-st.subheader("Preview Data")
-st.write(df.head(10))
+all_columns = df.columns.tolist()
+metric_columns = [
+    "calories",
+    "avg_cadence",
+    "distance",
+    "active_duration",
+    "total_duration",
+    "avg_power",
+    "np",
+    "tss",
+    "avg_speed",
+]
 
-columns = df.columns.tolist()
-# selected_column = st.selectbox("Select column to filter by", columns)
+metric_dropdown = st.selectbox("Select metric", metric_columns)
+# y_column = st.selectbox("Select y-axis column", all_columns)
 
-x_column = st.selectbox("Select x-axis column", columns)
-y_column = st.selectbox("Select y-axis column", columns)
+st.subheader("Performance Day of Week")
+st.bar_chart(df, x="weeday", y=metric_dropdown)
 
-if st.button("Generate Plot"):
-    st.line_chart(df.set_index(x_column)[y_column])
+# if st.button("Generate Plot"):
+#     st.line_chart(df.set_index(x_column)[y_column])
