@@ -4,6 +4,8 @@ from google.cloud import bigquery
 import pandas as pd
 from datetime import datetime, timedelta
 
+st.set_page_config(layout="wide")
+
 # Create API client.
 credentials = service_account.Credentials.from_service_account_info(
     st.secrets["gcp_service_account"]
@@ -33,8 +35,22 @@ df = pd.DataFrame(data)
 today = datetime.now().date()
 seven_days_ago = today - timedelta(days=7)
 
-df["starts_at"] = pd.to_datetime(df["starts_at"])
-df_this_week = df[df["starts_at"] >= seven_days_ago & df["starts_at"] <= today]
+df["start_date"] = pd.to_datetime(df["starts_at"]).dt.date
+df["weekday"] = pd.Categorical(
+    df["starts_at"].dt.day_name(),
+    categories=[
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ],
+    ordered=True,
+)
+# df_this_week = df[(df["start_date"] >= seven_days_ago) and (df["start_date"] <= today)]
+df_this_week = df[(df["start_date"] >= seven_days_ago) & (df["start_date"] <= today)]
 
 st.title("Wahoo Analytics")
 
@@ -43,19 +59,45 @@ metric_columns = [
     "calories",
     "avg_cadence",
     "distance",
+    "minutes",
     "active_duration",
     "total_duration",
     "avg_power",
+    "avg_speed",
     "np",
     "tss",
-    "avg_speed",
 ]
 
-metric_dropdown = st.selectbox("Select metric", metric_columns)
+with st.sidebar:
+    metric_dropdown = st.selectbox("Select metric", metric_columns)
 # y_column = st.selectbox("Select y-axis column", all_columns)
 
-st.subheader("Performance Day of Week")
-st.bar_chart(df, x="weeday", y=metric_dropdown)
 
+tab1, tab2 = st.tabs(["📈 Charts", "🗃 Data"])
+
+with tab1:
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Performance Day of Week")
+        df_weekday_avg = (
+            df.groupby("weekday")[metric_dropdown]
+            .mean()
+            .reset_index()
+            .sort_values("weekday")
+        )
+        st.bar_chart(df_weekday_avg, x="weekday", y=metric_dropdown)
+
+    with col2:
+        st.subheader("Performance over Time")
+        df_avg = (
+            df.groupby("start_date")[metric_dropdown]
+            .mean()
+            .reset_index()
+            .sort_values("start_date")
+        )
+        st.line_chart(df_avg, x="start_date", y=metric_dropdown)
+
+with tab2:
+    st.write(df)
 # if st.button("Generate Plot"):
 #     st.line_chart(df.set_index(x_column)[y_column])
